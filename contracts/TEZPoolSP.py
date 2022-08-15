@@ -1,6 +1,7 @@
 """
 LendOS $TEZ pool contract
 Lisenced under the Unlisence.
+Skip to line 452 for the pool code.
 """
 
 import smartpy as sp
@@ -448,6 +449,14 @@ if "templates" not in __name__:
             }
         )
     )
+# __POOL_CODE
+"""
+Postions are dicts with the following attributes:
+{
+    amount: int,
+    startTime: int
+}
+"""
 
 
 class TEZPool(FA12_mint_burn):
@@ -456,6 +465,9 @@ class TEZPool(FA12_mint_burn):
         self.update_initial_storage(
             ratio = maxRatio,
             interest = interestRate,
+            positions = {},
+            left = {},
+            lendingPositions = {}
         );
 
     # hopefully this makes everything more solidity-like
@@ -475,7 +487,28 @@ class TEZPool(FA12_mint_burn):
         sp.else:
             this.mint(self, {address: sp.sender, value: ((sp.amount * totalSupply)/totalTez)})
 
+    # redeem lendosTEZ for TEZ
+    @sp.entry_point
     def leave(amt):
         totalSupply = this.getTotalSupply()
-        this.burn(self, {address: sp.sender, value: ((amt * sp.self.balance)/totalSupply)})
+        this.burn(self, {address: sp.sender, value: amt})
+        sp.send(sp.sender, ((amt * sp.self.balance)/totalSupply))
+
+    # get the amount of TEZ someone has accrued
+    @sp.utils.view(sp.TNat)
+    def tezBalance(acct):
+        sp.result ((getBalance(self, acct) * sp.self.balance) / this.getTotalSupply());
+
+    # borrow TEZ
+    @sp.entry_point
+    def borrow(amt):
+        # make sure that
+        sp.if (self.data.left[sp.sender]):
+            sp.verify(amt <= (self.data.left[sp.sender] * tezBalance(sp.sender)))
+        sp.else:
+            self.data.left[sp.sender] = (tezBalance(acct) - amt);
+        self.data.positions[sp.sender].push({
+            amount: amt,
+            startTime: sp.now
+        })
         sp.send(sp.sender, amt)
