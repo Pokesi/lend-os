@@ -1,0 +1,204 @@
+type position = {
+    amount: nat,
+    startTime: timestamp
+}
+
+type ledger = {
+  totalSupply: nat,
+  balances: map<address, nat>
+}
+
+type storage = {
+  positions: map<address, position>,
+  hasPos: map<address, bool>,
+  ledger: ledger
+}
+
+const za = "v" as address;
+
+type _return = [list<operation>, storage, nat];
+
+const maxBorrowRatio = 85;
+const rate = 10;
+
+const enter = (storage: storage): _return => {
+    let store = storage;
+    const sender = Tezos.get_sender();
+    let hasPos = match(Map.find_opt(sender, store.hasPos), {
+      Some: (h: bool) => h,
+      None: () => false
+    });
+    if (hasPos) {
+        return failwith("XTZPool error: Sender already has a position open.");
+    };
+    const tezSent = Tezos.get_amount()/(1 as mutez);
+    const balance = Tezos.get_balance()/(1 as mutez);
+    const supply = store.ledger.totalSupply;
+    let _getB = ([k, m]: [address, map<address, nat>]): nat => {
+      return match(Map.find_opt(k, m),{
+        Some: (n: nat) => n,
+        None: () => (failwith("XTZPool error: Sender does not have a deposit open.") as nat)
+      });
+    };
+    if (balance == (0 as nat) || supply == (0 as nat)) {
+      const n = {...store, ledger: {balances: Map.update(sender, Some(tezSent), store.ledger.balances), totalSupply: (store.ledger.totalSupply + (tezSent as nat)) }};
+      store = n;
+    } else {
+      const n = {...store, ledger: {balances: Map.update(sender, Some(_getB([sender, store.ledger.balances]) + ((tezSent * supply) / balance)), store.ledger.balances), totalSupply: (((tezSent as nat) * supply) / balance) }};
+      store = n;
+    };
+    return [list([]), store, 0 as nat];
+}
+
+const leave = (amt: tez, storage: storage): _return => {
+    let store = storage;
+    const sender: address = Tezos.get_sender() as address;
+    const balance = Tezos.get_balance()/(1 as mutez);
+    if (balance < (amt/(1 as mutez))) {
+        return failwith("XTZPool error: Not enough XTZ to pay out");
+    };
+    let hasPos = match(Map.find_opt(sender, store.hasPos), {
+      Some: (h: bool) => h,
+      None: () => false
+    });
+    if (hasPos) {
+        return failwith("XTZPool error: Sender already has a position open.");
+    };
+    let _getB = ([k, m]: [address, map<address, nat>]): nat => {
+      return match(Map.find_opt(k, m),{
+        Some: (n: nat) => n,
+        None: () => (failwith("XTZPool error: Sender does not have a deposit open.") as nat)
+      });
+    };
+    const supply = store.ledger.totalSupply;
+    const newl = {...store, ledger: {...store.ledger, balances: Map.update(sender, Some(abs(_getB([sender, store.ledger.balances]) - (amt/(1 as mutez)))), store.ledger.balances)}};
+    store = newl
+    const n = {...store, ledger: {...store.ledger, totalSupply: abs(store.ledger.totalSupply - (amt/(1 as mutez))) }};
+    store = n;
+    const what = (amt * balance)/supply;
+    let receiver : contract<unit> =
+        match ((Tezos.get_contract_opt(sender) as option<contract<unit>>), {
+            Some: (contract : contract<unit>) => contract,
+            None: () => (failwith ("Not a contract") as contract<unit>)
+        });
+    let tx: operation = Tezos.transaction(unit, what as tez, receiver);
+    let operations : list<operation> = list([tx]);
+    return [operations, store, 0 as nat];
+}
+
+const xtzBalance = (a: address, store: storage): _return => {
+  let _getB = ([k, m]: [address, map<address, nat>]): nat => {
+    return match(Map.find_opt(k, m),{
+      Some: (n: nat) => n,
+      None: () => (failwith("XTZPool error: Sender does not have a deposit open.") as nat)
+    });
+  };
+  const balance = _getB([a, store.ledger.balances]);
+  const supply = store.ledger.totalSupply;
+  return [list([]), store, ((balance * Tezos.get_balance())/supply)/(1 as mutez)];
+}
+
+const borrow = (amt: tez, storage: storage): _return => {
+  let store = storage;
+  const sender = Tezos.get_sender();
+  let hasPos = match(Map.find_opt(sender, store.hasPos), {
+    Some: (h: bool) => h,
+    None: () => false
+  });
+  if (hasPos) {
+      return failwith("XTZPool error: Sender already has a position open.");
+  };
+  let _getB = ([k, m]: [address, map<address, nat>]): nat => {
+    return match(Map.find_opt(k, m),{
+      Some: (n: nat) => n,
+      None: () => (failwith("XTZPool error: Sender does not have a deposit open.") as nat)
+    });
+  };
+  // calc the amt of XTZ that can be borrowed
+  const l = xtzBalance(sender, store);
+  if (((l[2] * maxBorrowRatio)/100) < int(amt/(1 as mutez))) {
+    return failwith("XTZPool error: Sender doesn't have enough balance to borrow that much XTZ.")
+  };
+  // open position
+  const n = {...store, hasPos: Map.update(sender, Some(true), store.hasPos) };
+  store = n;
+  const pos: position = { amount: ((amt)/(1 as mutez)), startTime: ((Tezos.get_now())) };
+  const m = {...store, positions: Map.update(sender, Some(pos), store.positions) };
+  store = m;
+  // send the xtz
+  let receiver : contract<unit> =
+    match ((Tezos.get_contract_opt(sender) as option<contract<unit>>), {
+        Some: (contract : contract<unit>) => contract,
+        None: () => (failwith ("Not a contract") as contract<unit>)
+    });
+  let tx: operation = Tezos.transaction(unit, amt as tez, receiver);
+  let operations : list<operation> = list([tx]);
+  return [operations, store, 0 as nat];
+}
+
+const repay = (storage: storage): _return => {
+  let store = storage;
+  const sender = Tezos.get_sender();
+  let hasPos = match(Map.find_opt(sender, store.hasPos), {
+    Some: (h: bool) => h,
+    None: () => false
+  });
+  if (!hasPos) {
+      return failwith("XTZPool error: Sender does not have a position open.");
+  };
+  const tezSent = Tezos.get_amount();
+  // 31556926 is unix st year
+  let getPos = ([k, m]: [address, map<address, position>]): position => {
+    return match(Map.find_opt(
+      k,
+      m
+    ),{
+      Some: (p: position) => p,
+      None: () => (failwith("XTZPool error: Sender does not have a position open.") as position)
+    });
+  };
+  const position = getPos([sender, store.positions]);
+  const interestAccrued = (((rate * ((Tezos.get_now() - position.startTime)/31556926)) * position.amount)/100);
+  if (!((position.amount + interestAccrued) == int(tezSent/(1 as mutez)))) {
+    return failwith("XTZPool error: Not enough XTZ sent.");
+  };
+  const n = {...store, hasPos: Map.update(sender, Some(false), store.hasPos)};
+  store = n;
+  const pos: position = { amount: 0 as nat, startTime: 0 as timestamp };
+  const m = {...store, positions: Map.update(sender, Some(pos), store.positions)};
+  store = m;
+  return [list([]), store, 0 as nat];
+}
+
+const borrowed = (a: address, store: storage) : _return => {
+  let getPos = ([k, m]: [address, map<address, position>]): position => {
+    return match(Map.find_opt(
+      k,
+      m
+    ),{
+      Some: (p: position) => p,
+      None: () => (failwith("XTZPool error: Sender does not have a position open.") as position)
+    });
+  };
+  const position = getPos([a, store.positions])
+  return [list([]), store, position.amount];
+}
+
+type parameter =
+| ["Enter"]
+| ["Leave", tez]
+| ["Borrow", tez]
+| ["Repay"]
+| ["XTZBalance", address]
+| ["Borrowed", address];
+
+const main = (param: parameter, s: storage): _return => {
+  return match(param, {
+      Enter:      () => enter(s),
+      Leave:      (n: tez) => leave(n, s),
+      Borrow:     (n: tez) => borrow(n, s),
+      Repay:      () => repay(s),
+      XTZBalance: (a: address) => xtzBalance(a, s),
+      Borrowed:   (a: address) => borrowed(a, s)
+  })
+}

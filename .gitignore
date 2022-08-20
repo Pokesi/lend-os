@@ -1,2 +1,5 @@
 /bundle-react
 /.git
+/secrets
+/node_modules
+/sol2ligo
