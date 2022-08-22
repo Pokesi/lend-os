@@ -1,3 +1,21 @@
+/*{
+  positions: Map.literal(list([
+      [("tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX" as address), {
+        amount: (0 as nat),
+        startTime: (0 as timestamp)
+      }]
+    ])),
+  hasPos: Map.literal(list([
+    [("tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX" as address), false]
+  ])),
+  ledger: {
+    totalSupply: (0 as nat),
+    balances: Map.literal(list([
+      [("tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX" as address), (0 as nat)]
+    ]))
+  }
+}*/
+
 type position = {
     amount: nat,
     startTime: timestamp
@@ -11,12 +29,11 @@ type ledger = {
 type storage = {
   positions: map<address, position>,
   hasPos: map<address, bool>,
-  ledger: ledger
+  ledger: ledger,
+  ret: nat
 }
 
-const za = "v" as address;
-
-type _return = [list<operation>, storage, nat];
+type _return = [list<operation>, storage];
 
 const maxBorrowRatio = 85;
 const rate = 10;
@@ -47,7 +64,9 @@ const enter = (storage: storage): _return => {
       const n = {...store, ledger: {balances: Map.update(sender, Some(_getB([sender, store.ledger.balances]) + ((tezSent * supply) / balance)), store.ledger.balances), totalSupply: (((tezSent as nat) * supply) / balance) }};
       store = n;
     };
-    return [list([]), store, 0 as nat];
+    const m = {...store, ret: (0 as nat)};
+    store = m;
+    return [list([]), store];
 }
 
 const leave = (amt: tez, storage: storage): _return => {
@@ -83,10 +102,13 @@ const leave = (amt: tez, storage: storage): _return => {
         });
     let tx: operation = Tezos.transaction(unit, what as tez, receiver);
     let operations : list<operation> = list([tx]);
-    return [operations, store, 0 as nat];
+    const m = {...store, ret: (0 as nat)};
+    store = m;
+    return [operations, store];
 }
 
-const xtzBalance = (a: address, store: storage): _return => {
+const xtzBalance = (a: address, storage: storage): _return => {
+  let store = storage;
   let _getB = ([k, m]: [address, map<address, nat>]): nat => {
     return match(Map.find_opt(k, m),{
       Some: (n: nat) => n,
@@ -95,12 +117,26 @@ const xtzBalance = (a: address, store: storage): _return => {
   };
   const balance = _getB([a, store.ledger.balances]);
   const supply = store.ledger.totalSupply;
-  return [list([]), store, ((balance * Tezos.get_balance())/supply)/(1 as mutez)];
+  const m = {...store, ret: ((balance * Tezos.get_balance())/supply)/(1 as mutez)};
+  store = m;
+  return [list([]), store];
 }
 
 const borrow = (amt: tez, storage: storage): _return => {
   let store = storage;
   const sender = Tezos.get_sender();
+  const xtzBalance = (a: address, storage: storage): nat => {
+    let store = storage;
+    let _getB = ([k, m]: [address, map<address, nat>]): nat => {
+      return match(Map.find_opt(k, m),{
+        Some: (n: nat) => n,
+        None: () => (failwith("XTZPool error: Sender does not have a deposit open.") as nat)
+      });
+    };
+    const balance = _getB([a, store.ledger.balances]);
+    const supply = store.ledger.totalSupply;
+    return ((balance * Tezos.get_balance())/supply)/(1 as mutez);
+  }
   let hasPos = match(Map.find_opt(sender, store.hasPos), {
     Some: (h: bool) => h,
     None: () => false
@@ -115,8 +151,8 @@ const borrow = (amt: tez, storage: storage): _return => {
     });
   };
   // calc the amt of XTZ that can be borrowed
-  const l = xtzBalance(sender, store);
-  if (((l[2] * maxBorrowRatio)/100) < int(amt/(1 as mutez))) {
+  const wh = xtzBalance(sender, store);
+  if (((wh * maxBorrowRatio)/100) < int(amt/(1 as mutez))) {
     return failwith("XTZPool error: Sender doesn't have enough balance to borrow that much XTZ.")
   };
   // open position
@@ -133,7 +169,9 @@ const borrow = (amt: tez, storage: storage): _return => {
     });
   let tx: operation = Tezos.transaction(unit, amt as tez, receiver);
   let operations : list<operation> = list([tx]);
-  return [operations, store, 0 as nat];
+  const o = {...store, ret: (0 as nat)};
+  store = o;
+  return [operations, store];
 }
 
 const repay = (storage: storage): _return => {
@@ -159,7 +197,7 @@ const repay = (storage: storage): _return => {
   };
   const position = getPos([sender, store.positions]);
   const interestAccrued = (((rate * ((Tezos.get_now() - position.startTime)/31556926)) * position.amount)/100);
-  if (!((position.amount + interestAccrued) == int(tezSent/(1 as mutez)))) {
+  if (!((position.amount + interestAccrued) <= int(tezSent/(1 as mutez)))) {
     return failwith("XTZPool error: Not enough XTZ sent.");
   };
   const n = {...store, hasPos: Map.update(sender, Some(false), store.hasPos)};
@@ -167,10 +205,13 @@ const repay = (storage: storage): _return => {
   const pos: position = { amount: 0 as nat, startTime: 0 as timestamp };
   const m = {...store, positions: Map.update(sender, Some(pos), store.positions)};
   store = m;
-  return [list([]), store, 0 as nat];
+  const o = {...store, ret: (0 as nat)};
+  store = o;
+  return [list([]), store];
 }
 
-const borrowed = (a: address, store: storage) : _return => {
+const borrowed = (a: address, storage: storage) : _return => {
+  let store = storage;
   let getPos = ([k, m]: [address, map<address, position>]): position => {
     return match(Map.find_opt(
       k,
@@ -180,8 +221,28 @@ const borrowed = (a: address, store: storage) : _return => {
       None: () => (failwith("XTZPool error: Sender does not have a position open.") as position)
     });
   };
-  const position = getPos([a, store.positions])
-  return [list([]), store, position.amount];
+  const position = getPos([a, store.positions]);
+  const m = {...store, ret: position.amount};
+  store = m;
+  return [list([]), store];
+}
+
+const getInterestAccrued = (a: address, storage: storage) : _return => {
+  let store = storage;
+  let getPos = ([k, m]: [address, map<address, position>]): position => {
+    return match(Map.find_opt(
+      k,
+      m
+    ),{
+      Some: (p: position) => p,
+      None: () => (failwith("XTZPool error: Sender does not have a position open.") as position)
+    });
+  };
+  const position = getPos([a, store.positions]);
+  const interestAccrued = (((rate * ((Tezos.get_now() - position.startTime)/31556926)) * position.amount)/100);
+  const m = {...store, ret: abs(interestAccrued)};
+  store = m;
+  return [list([]), store];
 }
 
 type parameter =
@@ -190,7 +251,8 @@ type parameter =
 | ["Borrow", tez]
 | ["Repay"]
 | ["XTZBalance", address]
-| ["Borrowed", address];
+| ["Borrowed", address]
+| ["Interest", address];
 
 const main = (param: parameter, s: storage): _return => {
   return match(param, {
@@ -199,6 +261,7 @@ const main = (param: parameter, s: storage): _return => {
       Borrow:     (n: tez) => borrow(n, s),
       Repay:      () => repay(s),
       XTZBalance: (a: address) => xtzBalance(a, s),
-      Borrowed:   (a: address) => borrowed(a, s)
+      Borrowed:   (a: address) => borrowed(a, s),
+      Interest:   (a: address) => getInterestAccrued(a, s)
   })
 }

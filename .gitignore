@@ -3,3 +3,7 @@
 /secrets
 /node_modules
 /sol2ligo
+/consolel
+/lui
+/website/node_modules
+package-lock.json
