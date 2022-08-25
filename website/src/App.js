@@ -105,7 +105,7 @@ help        Get help                           help
 info        Get pool info                      info
 interest    Get your interest to be paid       interest
 repay       Repay a borrow + interest          repay
-withdraw    Withdraw XTZ                       withdraw {shares} (shares are the amount of XTZ you deposited, not including rewards)
+withdraw    Withdraw XTZ                       withdraw {amount} (shares are the amount of XTZ you deposited, not including rewards)
 `)
               })
             }
@@ -134,6 +134,7 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
             description: 'Get interestAccrued',
             fn: (...args) => {
               return new Promise(async (resolve, reject) => {
+<<<<<<< HEAD
                 const time = () => Math.round((new Date()).getTime() / 1000);
                 const t2u = (t) => Math.round((new Date(t)).getTime() / 1000);
                 const storage = await contract.storage();
@@ -143,6 +144,21 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
                 console.log(position)
                 const interestAccrued = (((85 * ((time() - t2u(position.startTime))/31556926)) * position.amount)/100);
                 resolve(`${interestAccrued/100_000_000_000} ꜩ`)
+=======
+                try {
+                  const time = () => Math.round((new Date()).getTime() / 1000);
+                  const t2u = (t) => Math.round((new Date(t)).getTime() / 1000);
+                  const storage = await contract.storage();
+                  console.log(storage)
+                  const positions = storage.positions.valueMap;
+                  const position = positions.get(`"${args[0] || w}"`);
+                  console.log(position)
+                  const interestAccrued = (((85 * ((time() - t2u(position.startTime))/31556926)) * position.amount)/100);
+                  resolve(`${interestAccrued/100_000_000_000} ꜩ`)
+                } catch (e) {
+                  resolve(e);
+                }
+>>>>>>> fcdb10b7302f60ba59feac5aeff22e36256db2b0
               })
             }
           },
@@ -177,8 +193,15 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
                 let tx;
                 const action = async () => {
                   try {
+                    const balance = await Tezos.tz.getBalance(contract_at);
+                    const storage = await contract.storage();
+                    console.log(storage.ledger.totalSupply);
+                    const ratio = balance/storage.ledger.totalSupply
+                    console.log(balance, "/|", ratio);
+                    const x = Math.floor(((parseFloat(args[0]) * 1_000_000) * ratio)/1_000);
+                    console.log(x);
                                                                             // mutez to tez
-                    const c = await contract.methods.leave(parseFloat(args[0]) * 1000000).send();
+                    const c = await contract.methods.leave(x).send();
                     tx = `Sent with txhash ${c.opHash}`;
                   } catch (e) {
                     tx = "Error: " + e.message
