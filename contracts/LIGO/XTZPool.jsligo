@@ -61,7 +61,7 @@ const enter = (storage: storage): _return => {
       const n = {...store, ledger: {balances: Map.update(sender, Some(tezSent), store.ledger.balances), totalSupply: (store.ledger.totalSupply + (tezSent as nat)) }};
       store = n;
     } else {
-      const n = {...store, ledger: {balances: Map.update(sender, Some(_getB([sender, store.ledger.balances]) + ((tezSent * supply) / balance)), store.ledger.balances), totalSupply: (((tezSent as nat) * supply) / balance) }};
+      const n = {...store, ledger: {balances: Map.update(sender, Some(_getB([sender, store.ledger.balances]) + ((tezSent * supply) / balance)), store.ledger.balances), totalSupply: (store.ledger.totalSupply + ((tezSent as nat) * supply) / balance) }};
       store = n;
     };
     const m = {...store, ret: (0 as nat)};
