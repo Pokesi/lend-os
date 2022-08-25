@@ -134,15 +134,19 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
             description: 'Get interestAccrued',
             fn: (...args) => {
               return new Promise(async (resolve, reject) => {
-                const time = () => Math.round((new Date()).getTime() / 1000);
-                const t2u = (t) => Math.round((new Date(t)).getTime() / 1000);
-                const storage = await contract.storage();
-                console.log(storage)
-                const positions = storage.positions.valueMap;
-                const position = positions.get(`"${args[0] || w}"`);
-                console.log(position)
-                const interestAccrued = (((85 * ((time() - t2u(position.startTime))/31556926)) * position.amount)/100);
-                resolve(`${interestAccrued/100_000_000_000} ꜩ`)
+                try {
+                  const time = () => Math.round((new Date()).getTime() / 1000);
+                  const t2u = (t) => Math.round((new Date(t)).getTime() / 1000);
+                  const storage = await contract.storage();
+                  console.log(storage)
+                  const positions = storage.positions.valueMap;
+                  const position = positions.get(`"${args[0] || w}"`);
+                  console.log(position)
+                  const interestAccrued = (((85 * ((time() - t2u(position.startTime))/31556926)) * position.amount)/100);
+                  resolve(`${interestAccrued/100_000_000_000} ꜩ`)
+                } catch (e) {
+                  resolve(e);
+                }
               })
             }
           },
@@ -177,8 +181,11 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
                 let tx;
                 const action = async () => {
                   try {
+                    const balance = await Tezos.tz.getBalance(contract_at);
+                    const storage = await contract.storage();
+                    const ratio = storage.ledger.totalSupply/balance
                                                                             // mutez to tez
-                    const c = await contract.methods.leave(parseFloat(args[0]) * 1000000).send();
+                    const c = await contract.methods.leave(Math.floor((parseFloat(args[0]) * 1_000_000)/ratio)).send();
                     tx = `Sent with txhash ${c.opHash}`;
                   } catch (e) {
                     tx = "Error: " + e.message
