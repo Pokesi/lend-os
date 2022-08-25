@@ -105,7 +105,7 @@ help        Get help                           help
 info        Get pool info                      info
 interest    Get your interest to be paid       interest
 repay       Repay a borrow + interest          repay
-withdraw    Withdraw XTZ                       withdraw {shares} (shares are the amount of XTZ you deposited, not including rewards)
+withdraw    Withdraw XTZ                       withdraw {amount} (shares are the amount of XTZ you deposited, not including rewards)
 `)
               })
             }
@@ -186,7 +186,7 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
                     console.log(storage.ledger.totalSupply);
                     const ratio = balance/storage.ledger.totalSupply
                     console.log(balance, "/|", ratio);
-                    const x = Math.floor(((parseFloat(args[0]) * 1_000_000) * ratio)/100);
+                    const x = Math.floor(((parseFloat(args[0]) * 1_000_000) * ratio)/1_000);
                     console.log(x);
                                                                             // mutez to tez
                     const c = await contract.methods.leave(x).send();
