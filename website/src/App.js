@@ -184,7 +184,7 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
                     const balance = await Tezos.tz.getBalance(contract_at);
                     const storage = await contract.storage();
                     console.log(storage.ledger.totalSupply);
-                    const ratio = storage.ledger.totalSupply/balance
+                    const ratio = balance/storage.ledger.totalSupply
                     console.log(balance, "/|", ratio);
                                                                             // mutez to tez
                     const c = await contract.methods.leave(Math.floor((parseFloat(args[0]) * 1_000_000)/ratio)).send();
