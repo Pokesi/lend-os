@@ -6,7 +6,7 @@ import { TezosToolkit } from '@taquito/taquito';
 import { BeaconWallet } from "@taquito/beacon-wallet";
 import { NetworkType } from "@airgap/beacon-sdk";
 
-// KT1Ap3CxUVjLWLJ4cNQuA3Tinjqe3T4cjBe5
+// KT1WQ3YrBU2tm9CckULXp27eGJmEmNWisJrm
 
 const Tezos = new TezosToolkit('https://rpc.tzkt.io/ghostnet');
 const options = {
@@ -15,7 +15,7 @@ const options = {
   prefferedNetwork: 'ghostnet'
 }
 const wallet = new BeaconWallet(options);
-const contract_at = "KT1APaPzy7h9hib3XRepxnnRr7NKTFLdcbyf";
+const contract_at = "KT1WQ3YrBU2tm9CckULXp27eGJmEmNWisJrm";
 
 function App() {
   const [history, setHistory] = React.useState([
