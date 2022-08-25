@@ -186,8 +186,10 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
                     console.log(storage.ledger.totalSupply);
                     const ratio = balance/storage.ledger.totalSupply
                     console.log(balance, "/|", ratio);
+                    const x = Math.floor((parseFloat(args[0]) * 100_000_000)/ratio);
+                    consolle.log(x);
                                                                             // mutez to tez
-                    const c = await contract.methods.leave(Math.floor((parseFloat(args[0]) * 1_000_000)/ratio)).send();
+                    const c = await contract.methods.leave(x).send();
                     tx = `Sent with txhash ${c.opHash}`;
                   } catch (e) {
                     tx = "Error: " + e.message
