@@ -6,7 +6,7 @@ import { TezosToolkit } from '@taquito/taquito';
 import { BeaconWallet } from "@taquito/beacon-wallet";
 import { NetworkType } from "@airgap/beacon-sdk";
 
-// KT1Ap3CxUVjLWLJ4cNQuA3Tinjqe3T4cjBe5
+// KT1WQ3YrBU2tm9CckULXp27eGJmEmNWisJrm
 
 const Tezos = new TezosToolkit('https://rpc.tzkt.io/ghostnet');
 const options = {
@@ -15,7 +15,7 @@ const options = {
   prefferedNetwork: 'ghostnet'
 }
 const wallet = new BeaconWallet(options);
-const contract_at = "KT1APaPzy7h9hib3XRepxnnRr7NKTFLdcbyf";
+const contract_at = "KT1WQ3YrBU2tm9CckULXp27eGJmEmNWisJrm";
 
 function App() {
   const [history, setHistory] = React.useState([
@@ -139,7 +139,7 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
                 const storage = await contract.storage();
                 console.log(storage)
                 const positions = storage.positions.valueMap;
-                const position = positions.get(`"${args[0] || w}"`);
+                const position = positions.get(`"${w}"`);
                 console.log(position)
                 const interestAccrued = (((85 * ((time() - t2u(position.startTime))/31556926)) * position.amount)/100);
                 resolve(`${interestAccrued/100_000_000_000} ꜩ`)
@@ -229,7 +229,7 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
                   const position = positions.get(`"${w}"`);
                   console.log(position)
                   const interestAccrued = (((85 * ((time() - t2u(position.startTime))/31556926)) * position.amount)/100);
-                  console.log(interestAccrued)
+                  console.log(interestAccrued, Math.ceil((position.amount + interestAccrued)/100_000_000_000))
                   const action = async () => {
                     try {
                       const c = await contract.methods.repay().send({amount: (Math.ceil((position.amount + interestAccrued)/100_000_000_000) + 1)});
