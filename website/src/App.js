@@ -185,7 +185,7 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
                     const storage = await contract.storage();
                     console.log(storage.ledger.totalSupply);
                     const ratio = storage.ledger.totalSupply/balance
-                    console.log(balance, "/|" ratio);
+                    console.log(balance, "/|", ratio);
                                                                             // mutez to tez
                     const c = await contract.methods.leave(Math.floor((parseFloat(args[0]) * 1_000_000)/ratio)).send();
                     tx = `Sent with txhash ${c.opHash}`;
