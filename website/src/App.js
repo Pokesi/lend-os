@@ -134,17 +134,6 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
             description: 'Get interestAccrued',
             fn: (...args) => {
               return new Promise(async (resolve, reject) => {
-<<<<<<< HEAD
-                const time = () => Math.round((new Date()).getTime() / 1000);
-                const t2u = (t) => Math.round((new Date(t)).getTime() / 1000);
-                const storage = await contract.storage();
-                console.log(storage)
-                const positions = storage.positions.valueMap;
-                const position = positions.get(`"${w}"`);
-                console.log(position)
-                const interestAccrued = (((85 * ((time() - t2u(position.startTime))/31556926)) * position.amount)/100);
-                resolve(`${interestAccrued/100_000_000_000} ꜩ`)
-=======
                 try {
                   const time = () => Math.round((new Date()).getTime() / 1000);
                   const t2u = (t) => Math.round((new Date(t)).getTime() / 1000);
@@ -158,7 +147,6 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
                 } catch (e) {
                   resolve(e);
                 }
->>>>>>> fcdb10b7302f60ba59feac5aeff22e36256db2b0
               })
             }
           },
