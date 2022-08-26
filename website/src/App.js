@@ -19,7 +19,7 @@ const contract_at = "KT1WQ3YrBU2tm9CckULXp27eGJmEmNWisJrm";
 
 function App() {
   const [history, setHistory] = React.useState([
-    "rave"
+    "@rave_names"
   ]);
 
   const [w, s]  = React.useState();
@@ -46,7 +46,7 @@ function App() {
     <Console
         id="console"
         autoFocus={true}
-        prompt={` C:/LendOS>`}
+        prompt={` C:\LendOS>`}
         history={history}
         onAddHistoryItem={appendToHistory}
         welcomeMessage={`LendOS [Version 0.1.0]\r\n(c) z.ftm. All rights reserved.\r\n
@@ -161,11 +161,12 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
                 try {
                   const peepoPogWow = await Tezos.tz.getBalance(contract_at);
                   const storage = await contract.storage();
-                  console.log(storage)
+                  console.log(storage, peepoPogWow, storage.ledger.totalSupply)
                   const balances = storage.ledger.balances.valueMap;
                   const balance = balances.get(`"${args[0] || w}"`);
-                  resolve(`You hold: ${balances/1_000_000} LendOSꜩ
-The current XTZ/LendOSXTZ rate is ${peepoPogWow/storage.ledger.totalSupply}`)
+                  console.log(peepoPogWow)
+                  resolve(`You hold: ${balance.div(1_000_000)} LendOSꜩ
+The current LendOSXTZ/XTZ rate is ${peepoPogWow.div(storage.ledger.totalSupply)}`)
                 } catch (e) {
                   resolve(e);
                 }
@@ -203,8 +204,11 @@ The current XTZ/LendOSXTZ rate is ${peepoPogWow/storage.ledger.totalSupply}`)
                 let tx;
                 const action = async () => {
                   try {
-                    
+                    const storage = await contract.storage();
+                    const balances = storage.ledger.balances.valueMap;
+                    const balance = balances.get(`"${args[0] || w}"`);
                     const x = Math.floor(parseFloat(args[0]) * 1_000_000);
+                    if (balance.lte(x)) { resolve(new Error("XTZPool: You do not have enough LendOSXTZ to withdraw this much"))}
                     console.log(x);
                                                                             // mutez to tez
                     const c = await contract.methods.leave(x).send();
@@ -258,10 +262,11 @@ The current XTZ/LendOSXTZ rate is ${peepoPogWow/storage.ledger.totalSupply}`)
                   const position = positions.get(`"${w}"`);
                   console.log(position)
                   const interestAccrued = (((85 * ((time() - t2u(position.startTime))/31556926)) * position.amount)/100);
-                  console.log(interestAccrued, Math.ceil((position.amount + interestAccrued)/100_000_000_000))
+                  console.log(interestAccrued)
+                  console.log(((interestAccrued)/1_000_000))
                   const action = async () => {
                     try {
-                      const c = await contract.methods.repay().send({amount: (Math.ceil((position.amount + interestAccrued)/100_000_000_000) + 1)});
+                      const c = await contract.methods.repay().send({amount: Math.ceil((position.amount + ((interestAccrued)/1_000_000))/10_000_000+1)});
                       tx = `Sent with txhash ${c.opHash}`;
                     } catch (e) {
                       tx = "Error: " + e.message
