@@ -164,7 +164,6 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
                   console.log(storage)
                   const balances = storage.ledger.balances.valueMap;
                   const balance = balances.get(`"${args[0] || w}"`);
-                  console.log(position);
                   resolve(`You hold: ${balances/1_000_000} LendOSꜩ
 The current XTZ/LendOSXTZ rate is ${peepoPogWow/storage.ledger.totalSupply}`)
                 } catch (e) {
