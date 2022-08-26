@@ -249,7 +249,7 @@ var ReactConsole = /** @class */ (function (_super) {
                             this.clear();
                             return [2 /*return*/];
                         }
-                        command = this.props.commands[cmd];
+                        command = this.props.commands[cmd.toLowerCase()];
                         this.setState({ commandInProgress: true });
                         if (!command) return [3 /*break*/, 2];
                         return [4 /*yield*/, command.fn.apply(command, args)];
