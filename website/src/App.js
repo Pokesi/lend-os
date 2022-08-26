@@ -52,6 +52,7 @@ function App() {
         welcomeMessage={`LendOS [Version 0.1.0]\r\n(c) z.ftm. All rights reserved.\r\n
 
 Commands:
+balance     Get the balance of shares you can withdraw
 borrow      Borrow XTZ
 connect     Connect your wallet using Beacon
 deposit     Deposit XTZ
@@ -60,7 +61,9 @@ help        Get help
 info        Get pool info
 interest    Get your interest to be paid
 repay       Repay a borrow + interest
-withdraw    Withdraw XTZ`}
+withdraw    Withdraw XTZ
+
+Type "help" for more information on each command`}
         noCommandFound={(s) => `'${s}' is not recognized as an internal or external command, operable program or batch file.`}
         commands={{
           history: {
@@ -97,6 +100,7 @@ withdraw    Withdraw XTZ`}
                 resolve(`
 COMMAND     DESCRIPTION                        SYNTAX
 =====================================================================================================================================
+balance     Get your balance of shares         balance
 borrow      Borrow XTZ                         borrow {amount}
 connect     Connect your wallet using Beacon   connect
 deposit     Deposit XTZ                        deposit {amount}
@@ -105,7 +109,7 @@ help        Get help                           help
 info        Get pool info                      info
 interest    Get your interest to be paid       interest
 repay       Repay a borrow + interest          repay
-withdraw    Withdraw XTZ                       withdraw {amount} (shares are the amount of XTZ you deposited, not including rewards)
+withdraw    Withdraw XTZ                       withdraw {shares} (shares are the amount of XTZ you deposited, not including rewards)
 `)
               })
             }
@@ -150,6 +154,25 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
               })
             }
           },
+          balance: {
+            description: 'Get balance',
+            fn: (...args) => {
+              return new Promise(async (resolve, reject) => {
+                try {
+                  const peepoPogWow = await Tezos.tz.getBalance(contract_at);
+                  const storage = await contract.storage();
+                  console.log(storage)
+                  const balances = storage.ledger.balances.valueMap;
+                  const balance = balances.get(`"${args[0] || w}"`);
+                  console.log(position);
+                  resolve(`You hold: ${balances/1_000_000} LendOSꜩ
+The current XTZ/LendOSXTZ rate is ${peepoPogWow/storage.ledger.totalSupply}`)
+                } catch (e) {
+                  resolve(e);
+                }
+              })
+            }
+          },
           deposit: {
             description: 'Deposit XTZ',
             fn: (...args) => {
@@ -181,12 +204,8 @@ Deployer: tz1V1b5238Dxd4xvoNAHJemVB9R8mrqCLZXX
                 let tx;
                 const action = async () => {
                   try {
-                    const balance = await Tezos.tz.getBalance(contract_at);
-                    const storage = await contract.storage();
-                    console.log(storage.ledger.totalSupply);
-                    const ratio = balance/storage.ledger.totalSupply
-                    console.log(balance, "/|", ratio);
-                    const x = Math.floor(((parseFloat(args[0]) * 1_000_000) * ratio)/1_000);
+                    
+                    const x = Math.floor(parseFloat(args[0]) * 1_000_000);
                     console.log(x);
                                                                             // mutez to tez
                     const c = await contract.methods.leave(x).send();
